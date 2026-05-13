@@ -427,6 +427,71 @@ class TestNotebookParser:
         result = await tool.execute(path=str(path))
         assert "No code cells" in result
 
+    async def test_syntax_error_cell_skipped_rest_included(self, tool, tmp_path):
+        nb = {
+            "nbformat": 4, "nbformat_minor": 5, "metadata": {},
+            "cells": [
+                {"cell_type": "code", "source": ["import numpy as np"], "metadata": {}, "outputs": []},
+                {"cell_type": "code", "source": ["def broken(\n    pass\n"], "metadata": {}, "outputs": []},
+                {"cell_type": "code", "source": ["x = np.zeros(3)"], "metadata": {}, "outputs": []},
+            ],
+        }
+        path = tmp_path / "broken.ipynb"
+        path.write_text(json.dumps(nb))
+        result = await tool.execute(path=str(path))
+        assert "import numpy as np" in result
+        assert "x = np.zeros(3)" in result
+        assert "cell 2 skipped" in result
+        assert "syntax error" in result.lower()
+
+    async def test_syntax_error_header_lists_all_skipped(self, tool, tmp_path):
+        nb = {
+            "nbformat": 4, "nbformat_minor": 5, "metadata": {},
+            "cells": [
+                {"cell_type": "code", "source": ["def bad1(\n"], "metadata": {}, "outputs": []},
+                {"cell_type": "code", "source": ["x = 1"], "metadata": {}, "outputs": []},
+                {"cell_type": "code", "source": ["def bad2(\n"], "metadata": {}, "outputs": []},
+            ],
+        }
+        path = tmp_path / "two_broken.ipynb"
+        path.write_text(json.dumps(nb))
+        result = await tool.execute(path=str(path))
+        assert "cell 1 skipped" in result
+        assert "cell 3 skipped" in result
+        assert "x = 1" in result
+
+    async def test_magic_commands_replaced_with_comments(self, tool, tmp_path):
+        nb = {
+            "nbformat": 4, "nbformat_minor": 5, "metadata": {},
+            "cells": [
+                {
+                    "cell_type": "code",
+                    "source": ["%matplotlib inline\nimport matplotlib.pyplot as plt\n!pip install seaborn\n"],
+                    "metadata": {}, "outputs": [],
+                },
+            ],
+        }
+        path = tmp_path / "magic.ipynb"
+        path.write_text(json.dumps(nb))
+        result = await tool.execute(path=str(path))
+        assert "import matplotlib.pyplot as plt" in result
+        assert "# [magic]" in result
+        assert "%matplotlib" not in result.replace("# [magic] %matplotlib", "")
+        assert "!pip" not in result.replace("# [magic] !pip", "")
+
+    async def test_magic_cell_is_valid_python_after_stripping(self, tool, tmp_path):
+        import ast
+        nb = {
+            "nbformat": 4, "nbformat_minor": 5, "metadata": {},
+            "cells": [
+                {"cell_type": "code", "source": ["%matplotlib inline\nx = 1\n"], "metadata": {}, "outputs": []},
+            ],
+        }
+        path = tmp_path / "magic_valid.ipynb"
+        path.write_text(json.dumps(nb))
+        result = await tool.execute(path=str(path))
+        ast.parse(result)  # must not raise
+
     async def test_schema_name(self, tool):
         assert tool.schema.name == "notebook_parser"
 
