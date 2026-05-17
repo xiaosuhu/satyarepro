@@ -1,0 +1,3 @@
+# HuggingFace Spaces requirements (Layer 1 static audit only, no API key needed).
+# All Layer 1 tools use Python stdlib — the only runtime dep is Streamlit.
+streamlit>=1.40.0
