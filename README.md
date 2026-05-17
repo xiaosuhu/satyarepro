@@ -38,7 +38,8 @@ reporting, data provenance) and requires an Anthropic API key.
 ## HuggingFace Space demo
 
 > **Try it in your browser — no install needed:**  
-> _🔗 Demo link coming soon — [placeholder]_
+> 🔗 **Live Demo:** [https://huggingface.co/spaces/xiaosuhu1986/satyarepro](https://huggingface.co/spaces/xiaosuhu1986/satyarepro)
+
 
 ---
 
