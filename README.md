@@ -1,3 +1,15 @@
+---
+title: SatyaRepro
+emoji: 🔬
+colorFrom: blue
+colorTo: green
+sdk: docker
+sdk_version: "3.41.1"
+python_version: "3.11"
+app_file: app.py
+pinned: false
+---
+
 # SatyaRepro
 
 An agentic AI tool that audits biomedical AI/ML workflows for reproducibility
