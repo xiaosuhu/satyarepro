@@ -24,9 +24,11 @@ if settings.anthropic_api_key:
 
 from satyarepro.client.claude import ClaudeClient
 from satyarepro.types import CompletionResponse, ToolSchema
+from satyarepro.tools.layer2.hyperparameter_reporter import HyperparameterReporter
 from satyarepro.tools.layer2.leakage_detector import LeakageDetector
-from satyarepro.tools.layer2.subgroup_reporter import SubgroupReporter
+from satyarepro.tools.layer2.metrics_completeness_checker import MetricsCompletenessChecker
 from satyarepro.tools.layer2.provenance_checker import ProvenanceChecker
+from satyarepro.tools.layer2.subgroup_reporter import SubgroupReporter
 from satyarepro.tools.parsers import parse_input
 
 
@@ -90,7 +92,7 @@ async def main(notebook_path: str) -> None:
     print(f"  Model    : claude-sonnet-4-6")
 
     # Step 1: parse the notebook
-    print("\n[1/4] Parsing notebook…")
+    print("\n[1/6] Parsing notebook…")
     code = await parse_input(notebook_path)
     print(f"      {len(code)} chars extracted.\n")
 
@@ -98,12 +100,14 @@ async def main(notebook_path: str) -> None:
     client = TrackingClient()
 
     tools = [
-        ("leakage_detector",   LeakageDetector(client=client)),
-        ("subgroup_reporter",  SubgroupReporter(client=client)),
-        ("provenance_checker", ProvenanceChecker(client=client)),
+        ("leakage_detector",          LeakageDetector(client=client)),
+        ("subgroup_reporter",         SubgroupReporter(client=client)),
+        ("provenance_checker",        ProvenanceChecker(client=client)),
+        ("hyperparameter_reporter",   HyperparameterReporter(client=client)),
+        ("metrics_completeness_checker", MetricsCompletenessChecker(client=client)),
     ]
 
-    # Step 2–4: call each tool and print result
+    # Step 2–6: call each tool and print result
     for step, (name, tool) in enumerate(tools, start=2):
         print(f"[{step}/4] Running {name}…")
         result = await tool.execute(code=code)

@@ -17,7 +17,9 @@ from satyarepro.tools.layer1.checkpoint_check import CheckpointCheck
 from satyarepro.tools.layer1.dependency_check import DependencyCheck
 from satyarepro.tools.layer1.seed_check import SeedCheck
 from satyarepro.tools.layer1.split_check import SplitCheck
+from satyarepro.tools.layer2.hyperparameter_reporter import HyperparameterReporter
 from satyarepro.tools.layer2.leakage_detector import LeakageDetector
+from satyarepro.tools.layer2.metrics_completeness_checker import MetricsCompletenessChecker
 from satyarepro.tools.layer2.provenance_checker import ProvenanceChecker
 from satyarepro.tools.layer2.subgroup_reporter import SubgroupReporter
 from satyarepro.tools.parsers import parse_input
@@ -340,6 +342,42 @@ class TestProvenanceChecker:
 
     async def test_schema_name(self):
         assert ProvenanceChecker().schema.name == "provenance_checker"
+
+
+class TestHyperparameterReporter:
+    async def test_returns_llm_response(self):
+        mock = MockClient()
+        mock.enqueue(_ok_response("Learning rate hardcoded: high severity."))
+        tool = HyperparameterReporter(client=mock)
+        result = await tool.execute(code=_SAMPLE_CODE)
+        assert "Learning rate" in result
+
+    async def test_code_forwarded(self):
+        mock = MockClient()
+        tool = HyperparameterReporter(client=mock)
+        await tool.execute(code=_SAMPLE_CODE)
+        assert _SAMPLE_CODE in mock.calls[0]["messages"][0]["content"]
+
+    async def test_schema_name(self):
+        assert HyperparameterReporter().schema.name == "hyperparameter_reporter"
+
+
+class TestMetricsCompletenessChecker:
+    async def test_returns_llm_response(self):
+        mock = MockClient()
+        mock.enqueue(_ok_response("AUC-ROC missing: high severity."))
+        tool = MetricsCompletenessChecker(client=mock)
+        result = await tool.execute(code=_SAMPLE_CODE)
+        assert "AUC-ROC" in result
+
+    async def test_code_forwarded(self):
+        mock = MockClient()
+        tool = MetricsCompletenessChecker(client=mock)
+        await tool.execute(code=_SAMPLE_CODE)
+        assert _SAMPLE_CODE in mock.calls[0]["messages"][0]["content"]
+
+    async def test_schema_name(self):
+        assert MetricsCompletenessChecker().schema.name == "metrics_completeness_checker"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
