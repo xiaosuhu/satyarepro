@@ -12,10 +12,9 @@ from pathlib import Path
 
 async def _run_static(path: Path) -> None:
     from satyarepro.tools.layer1 import CheckpointCheck, DependencyCheck, SeedCheck, SplitCheck
-    from satyarepro.tools.parsers import NotebookParser, ScriptParser
+    from satyarepro.tools.parsers import parse_input
 
-    parser = NotebookParser() if path.suffix == ".ipynb" else ScriptParser()
-    code = await parser.execute(path=str(path))
+    code = await parse_input(str(path))
 
     print(f"\n{'═' * 58}")
     print(f"  SatyaRepro — Static Audit")

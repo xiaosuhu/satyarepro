@@ -20,6 +20,7 @@ from satyarepro.tools.layer1.split_check import SplitCheck
 from satyarepro.tools.layer2.leakage_detector import LeakageDetector
 from satyarepro.tools.layer2.provenance_checker import ProvenanceChecker
 from satyarepro.tools.layer2.subgroup_reporter import SubgroupReporter
+from satyarepro.tools.parsers import parse_input
 from satyarepro.tools.parsers.notebook_parser import NotebookParser
 from satyarepro.tools.parsers.script_parser import ScriptParser
 from satyarepro.tools.reports.dmsp_generator import DMSPGenerator
@@ -508,8 +509,77 @@ class TestScriptParser:
         assert "import torch" in result
         assert "print('hello')" in result
 
+    async def test_has_script_header(self, tool, tmp_path):
+        script = tmp_path / "model.py"
+        script.write_text("x = 1\n", encoding="utf-8")
+        result = await tool.execute(path=str(script))
+        assert result.startswith("# ── script ──")
+
+    async def test_magic_lines_stripped_to_comments(self, tool, tmp_path):
+        script = tmp_path / "magic.py"
+        script.write_text(
+            "%matplotlib inline\nimport numpy as np\n!pip install pandas\nx = 1\n",
+            encoding="utf-8",
+        )
+        result = await tool.execute(path=str(script))
+        assert "# [magic] %matplotlib inline" in result
+        assert "# [magic] !pip install pandas" in result
+        assert "import numpy as np" in result
+        assert "x = 1" in result
+        # no line should start with a raw magic prefix
+        for line in result.splitlines():
+            assert not line.lstrip().startswith(("%", "!")), f"magic line survived: {line!r}"
+
+    async def test_syntax_error_returns_placeholder(self, tool, tmp_path):
+        script = tmp_path / "broken.py"
+        script.write_text("def bad(\n    pass\n", encoding="utf-8")
+        result = await tool.execute(path=str(script))
+        assert "script skipped" in result
+        assert "syntax error" in result.lower()
+        # must not crash and still have the header
+        assert "# ── script ──" in result
+
     async def test_schema_name(self, tool):
         assert tool.schema.name == "script_parser"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ParseInput routing
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestParseInput:
+    async def test_ipynb_routes_to_notebook_parser(self, tmp_path):
+        nb = {
+            "nbformat": 4, "nbformat_minor": 5, "metadata": {},
+            "cells": [
+                {"cell_type": "code", "source": ["import pandas as pd"], "metadata": {}, "outputs": []},
+            ],
+        }
+        path = tmp_path / "notebook.ipynb"
+        path.write_text(json.dumps(nb), encoding="utf-8")
+        result = await parse_input(str(path))
+        assert "import pandas as pd" in result
+        # NotebookParser uses cell separators, not the script header
+        assert "# ── cell ──" not in result or "# ── script ──" not in result
+
+    async def test_py_routes_to_script_parser(self, tmp_path):
+        script = tmp_path / "train.py"
+        script.write_text("import sklearn\n", encoding="utf-8")
+        result = await parse_input(str(script))
+        assert "import sklearn" in result
+        assert result.startswith("# ── script ──")
+
+    async def test_unsupported_format_raises_value_error(self, tmp_path):
+        path = tmp_path / "data.csv"
+        path.write_text("a,b,c\n1,2,3\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="Unsupported file format"):
+            await parse_input(str(path))
+
+    async def test_unsupported_format_error_lists_supported_types(self, tmp_path):
+        path = tmp_path / "model.pkl"
+        path.write_text("binary", encoding="utf-8")
+        with pytest.raises(ValueError, match=r"\.(ipynb|py)"):
+            await parse_input(str(path))
 
 
 # ══════════════════════════════════════════════════════════════════════════════

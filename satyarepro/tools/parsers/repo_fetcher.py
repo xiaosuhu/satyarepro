@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 import tempfile
 from pathlib import Path
@@ -7,23 +6,11 @@ from pathlib import Path
 from satyarepro.types import ToolSchema
 
 from ..base import Tool
+from .unified_parser import parse_input
 
 _PY_EXTENSIONS = {".py", ".ipynb"}
 _MAX_FILE_CHARS = 8_000
 _MAX_FILES = 20
-
-
-def _extract_notebook_cells(path: Path) -> str:
-    try:
-        nb = json.loads(path.read_text(encoding="utf-8"))
-        cells = [
-            "".join(c.get("source", []))
-            for c in nb.get("cells", [])
-            if c.get("cell_type") == "code"
-        ]
-        return "\n\n".join(cells)
-    except Exception:
-        return path.read_text(encoding="utf-8", errors="replace")
 
 
 class RepoFetcher(Tool):
@@ -72,10 +59,7 @@ class RepoFetcher(Tool):
             for fpath in py_files:
                 rel = fpath.relative_to(tmpdir)
                 try:
-                    if fpath.suffix == ".ipynb":
-                        content = _extract_notebook_cells(fpath)
-                    else:
-                        content = fpath.read_text(encoding="utf-8", errors="replace")
+                    content = await parse_input(str(fpath))
                     if len(content) > _MAX_FILE_CHARS:
                         content = content[:_MAX_FILE_CHARS] + f"\n# … truncated ({len(content)} chars total)"
                     sections.append(f"# === {rel} ===\n{content}")

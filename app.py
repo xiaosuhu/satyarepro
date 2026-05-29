@@ -16,13 +16,12 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent))
 
 from satyarepro.tools.layer1 import CheckpointCheck, DependencyCheck, SeedCheck, SplitCheck
-from satyarepro.tools.parsers import NotebookParser, ScriptParser
+from satyarepro.tools.parsers import parse_input
 
 # ── Audit logic ───────────────────────────────────────────────────────────────
 
 async def _audit(tmp_path: Path, requirements_content: str | None) -> list[dict]:
-    parser = NotebookParser() if tmp_path.suffix == ".ipynb" else ScriptParser()
-    code = await parser.execute(path=str(tmp_path))
+    code = await parse_input(str(tmp_path))
 
     checks: list[tuple[str, object, dict]] = [
         ("seed_check", SeedCheck(), {"code": code}),

@@ -54,7 +54,11 @@ order based on the input code.
 - notebook_parser: parse .ipynb files — strips Jupyter magic commands
   (%matplotlib, !pip, etc.) and skips cells with syntax errors; 
   remaining cells are always valid Python for downstream AST tools
-- script_parser: parse .py files
+- script_parser: parse .py files — strips magic lines (%/! prefixes)
+  and handles syntax errors with placeholder comments; prepends
+  # ── script ── header for consistency with notebook output
+- unified_parser: parse_input(path) entry point — routes .ipynb to
+  NotebookParser, .py to ScriptParser, raises ValueError otherwise
 - repo_fetcher: clone GitHub repo (shallow), extract relevant files
 # dataset_parser: to be added in Year 2
 
@@ -87,7 +91,8 @@ satyarepro/
     ├── layer2/       — leakage_detector, subgroup_reporter,
     │                    provenance_checker
     ├── reports/      — tripod_ai_generator, dmsp_generator
-    └── parsers/      — notebook_parser, script_parser, repo_fetcher
+    └── parsers/      — notebook_parser, script_parser, repo_fetcher,
+                       unified_parser (parse_input routing fn)
 
 ## CLI Usage
 # Install (editable):
@@ -111,7 +116,7 @@ Year 2: R, MATLAB support; cloud deployment; dataset_parser;
 Year 3: DOME, CONSORT-AI standards
 
 ## Implementation Status (Year 1)
-Built and tested (68 tests passing):
+Built and tested (66 tests passing):
 - All 12 tools implemented and registered in create_default_registry()
 - Layer 2 tools and report generators accept optional ModelClient;
   fall back to lazy ClaudeClient() if none passed
@@ -119,6 +124,11 @@ Built and tested (68 tests passing):
   to reduce token cost across agent iterations
 - CLI supports --static-only (no API key) and full agentic mode
 - FastAPI server (main.py / uvicorn) for HTTP access
+- .py input support end-to-end:
+  - script_parser upgraded with magic strip + syntax error handling
+  - unified_parser.parse_input() routes by file extension
+  - cli.py, app.py, repo_fetcher all use parse_input() — no manual
+    if/else routing in call sites
 
 Known gaps for Year 1 completion:
 - dependency_check requires requirements.txt content passed separately;
