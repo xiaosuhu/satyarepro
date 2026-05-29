@@ -60,6 +60,6 @@ class ProvenanceChecker(Tool):
         response = await client.complete(
             messages=[{"role": "user", "content": _PROMPT_TEMPLATE.format(code=code)}],
             system=_SYSTEM,
-            max_tokens=4096,
+            max_tokens=6144,
         )
         return response.content
