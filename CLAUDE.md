@@ -136,6 +136,14 @@ Known gaps for Year 1 completion:
 - Benchmark dataset (annotated notebooks with known issues) not yet built
 - OllamaClient not yet implemented (Year 2)
 
+Backlog:
+- 支持本地 Ollama 作为可选 ModelClient backend：
+  新建 satyarepro/client/ollama.py，实现和 ClaudeClient 相同的接口
+  （complete / complete_with_tools），通过环境变量 MODEL_BACKEND=ollama /
+  OLLAMA_MODEL=llama3 等切换。
+  用途：本地测试 Layer 2 prompt 质量、对比小模型 vs Claude 的检测准确度、
+  离线开发。
+
 ## Testing Strategy
 - Layer 1 tools: unit tested deterministically — no LLM or MockClient needed
 - Layer 2 tools + report generators: tested with MockClient for structure

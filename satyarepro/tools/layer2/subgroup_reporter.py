@@ -22,6 +22,7 @@ Check whether the code evaluates and reports performance separately for:
 
 For each dimension report: present (yes/partial/no), evidence or location in the code, and what is missing.
 Note any fairness or equity concerns.
+Be concise: report only actionable findings, skip boilerplate.
 
 ```python
 {code}
@@ -60,6 +61,6 @@ class SubgroupReporter(Tool):
         response = await client.complete(
             messages=[{"role": "user", "content": _PROMPT_TEMPLATE.format(code=code)}],
             system=_SYSTEM,
-            max_tokens=2048,
+            max_tokens=6144,
         )
         return response.content

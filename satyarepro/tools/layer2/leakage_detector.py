@@ -60,6 +60,6 @@ class LeakageDetector(Tool):
         response = await client.complete(
             messages=[{"role": "user", "content": _PROMPT_TEMPLATE.format(code=code)}],
             system=_SYSTEM,
-            max_tokens=2048,
+            max_tokens=4096,
         )
         return response.content
