@@ -9,10 +9,12 @@ import os
 import textwrap
 import tempfile
 
+import pandas as pd
 import pytest
 
 from satyarepro.client.mock import MockClient
 from satyarepro.tools import create_default_registry
+from satyarepro.tools.data.data_profiler import DataProfiler
 from satyarepro.tools.layer1.checkpoint_check import CheckpointCheck
 from satyarepro.tools.layer1.dependency_check import DependencyCheck
 from satyarepro.tools.layer1.seed_check import SeedCheck
@@ -653,3 +655,109 @@ class TestRegistry:
         registry = create_default_registry(client=mock)
         names = {s.name for s in registry.schemas()}
         assert "leakage_detector" in names
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DataProfiler — local data analysis tool (no LLM)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestDataProfiler:
+    @pytest.fixture
+    def tool(self):
+        return DataProfiler()
+
+    @pytest.fixture
+    def csv_path(self, tmp_path):
+        df = pd.DataFrame({
+            "age":    [50, 55, 60, 62, 64, 66, 68, 200, 70, None, 72,   74],
+            "sex":    [ 1,  0,  1,  0,  1,  0,  1,   0,  1,    0,  1,    0],
+            "ca":     [ 0,  1,  2,  3,  0,  1,  2,   3,  0,    1, None,  4],
+            "thal":   [ 3,  2,  1,  3,  2,  3,  1,   3,  2,    3,  2,    7],
+            "target": [ 0,  0,  0,  0,  0,  0,  0,   1,  1,    1,  1,    1],
+        })
+        p = tmp_path / "test.csv"
+        df.to_csv(p, index=False)
+        return str(p)
+
+    async def test_basic_stats(self, tool, csv_path):
+        result = json.loads(await tool.execute(path=csv_path))
+        assert result["basic"]["rows"] == 12
+        assert result["basic"]["columns"] == 5
+
+    async def test_missing_values_detected(self, tool, csv_path):
+        result = json.loads(await tool.execute(path=csv_path))
+        assert result["missing_total"] == 2
+        assert result["missing"]["age"]["count"] == 1
+        assert result["missing"]["ca"]["count"] == 1
+
+    async def test_missing_ratio(self, tool, csv_path):
+        result = json.loads(await tool.execute(path=csv_path))
+        assert result["missing"]["age"]["ratio"] == pytest.approx(1 / 12, abs=0.0001)
+
+    async def test_no_missing_column_omitted(self, tool, csv_path):
+        result = json.loads(await tool.execute(path=csv_path))
+        assert "sex" not in result["missing"]
+        assert "target" not in result["missing"]
+
+    async def test_class_imbalance_distribution(self, tool, csv_path):
+        result = json.loads(await tool.execute(path=csv_path))
+        dist = result["class_imbalance"]["distribution"]
+        assert dist["0"] == 7
+        assert dist["1"] == 5
+
+    async def test_class_imbalance_ratio(self, tool, csv_path):
+        result = json.loads(await tool.execute(path=csv_path))
+        assert result["class_imbalance"]["imbalance_ratio"] == pytest.approx(7 / 5, abs=0.001)
+
+    async def test_demographics_sex_distribution(self, tool, csv_path):
+        result = json.loads(await tool.execute(path=csv_path))
+        sex = result["demographics"]["sex"]
+        assert sex["distribution"]["0"] == 6
+        assert sex["distribution"]["1"] == 6
+
+    async def test_demographics_age_min_max(self, tool, csv_path):
+        result = json.loads(await tool.execute(path=csv_path))
+        age = result["demographics"]["age"]
+        assert age["min"] == 50.0
+        assert age["max"] == 200.0
+
+    async def test_outlier_detected_in_age(self, tool, csv_path):
+        result = json.loads(await tool.execute(path=csv_path))
+        assert result["outliers"]["age"]["outlier_count"] == 1
+
+    async def test_no_outlier_columns_have_count_zero_or_positive(self, tool, csv_path):
+        result = json.loads(await tool.execute(path=csv_path))
+        for col, info in result["outliers"].items():
+            assert info["outlier_count"] >= 0
+
+    async def test_consistency_ca_out_of_range(self, tool, csv_path):
+        result = json.loads(await tool.execute(path=csv_path))
+        assert result["consistency"]["ca"]["out_of_range_count"] == 1
+        assert result["consistency"]["ca"]["expected_range"] == [0, 3]
+
+    async def test_consistency_thal_out_of_range(self, tool, csv_path):
+        result = json.loads(await tool.execute(path=csv_path))
+        assert result["consistency"]["thal"]["out_of_range_count"] == 1
+        assert result["consistency"]["thal"]["expected_range"] == [1, 3]
+
+    async def test_missing_target_col_reports_error(self, tool, tmp_path):
+        df = pd.DataFrame({"age": [1, 2], "label": [0, 1]})
+        p = tmp_path / "no_target.csv"
+        df.to_csv(p, index=False)
+        result = json.loads(await tool.execute(path=str(p)))
+        assert "error" in result["class_imbalance"]
+
+    async def test_custom_target_col(self, tool, tmp_path):
+        df = pd.DataFrame({"age": [1, 2, 3], "label": [0, 1, 0]})
+        p = tmp_path / "custom.csv"
+        df.to_csv(p, index=False)
+        result = json.loads(await tool.execute(path=str(p), target_col="label"))
+        assert "error" not in result["class_imbalance"]
+        assert result["class_imbalance"]["column"] == "label"
+
+    async def test_file_not_found_returns_error(self, tool):
+        result = json.loads(await tool.execute(path="/nonexistent/file.csv"))
+        assert "error" in result
+
+    async def test_schema_name(self, tool):
+        assert tool.schema.name == "data_profiler"
