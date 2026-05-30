@@ -1,4 +1,5 @@
+from .dmsp_compliance_report import DMSPComplianceReport
 from .dmsp_generator import DMSPGenerator
 from .tripod_ai_generator import TripodAIGenerator
 
-__all__ = ["TripodAIGenerator", "DMSPGenerator"]
+__all__ = ["TripodAIGenerator", "DMSPGenerator", "DMSPComplianceReport"]

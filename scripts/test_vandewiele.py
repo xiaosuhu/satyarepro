@@ -1,42 +1,42 @@
-"""Integration test: run all three Layer 2 tools against a real notebook
-using the live Claude API.
+"""Targeted audit of GillesVandewiele/EHG-oversampling oversampling_analysis.py.
+
+Runs two Layer 2 tools against a real-world EHR oversampling script:
+  - leakage_detector          (expected: StandardScaler fit before split)
+  - metrics_completeness_checker
+
+Source:
+  https://raw.githubusercontent.com/GillesVandewiele/EHG-oversampling/
+  master/experiments/oversampling_analysis.py
+
+Local copy: testing_notebooks/oversampling_analysis.py
 
 Usage:
-    python scripts/test_layer2_real.py
-    python scripts/test_layer2_real.py --notebook testing_notebooks/test_notebook.ipynb
+    python scripts/test_vandewiele.py
 """
 from __future__ import annotations
 
-import argparse
 import asyncio
 import os
 import sys
 from pathlib import Path
 
-# Make the repo root importable when running the script directly.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# pydantic-settings loads .env into settings but not os.environ;
-# AsyncAnthropic() reads os.environ directly, so bridge the gap here.
 from satyarepro.config import settings
 if settings.anthropic_api_key:
     os.environ.setdefault("ANTHROPIC_API_KEY", settings.anthropic_api_key)
 
 from satyarepro.client.claude import ClaudeClient
-from satyarepro.types import CompletionResponse, ToolSchema
-from satyarepro.tools.layer2.hyperparameter_reporter import HyperparameterReporter
+from satyarepro.types import CompletionResponse
 from satyarepro.tools.layer2.leakage_detector import LeakageDetector
 from satyarepro.tools.layer2.metrics_completeness_checker import MetricsCompletenessChecker
-from satyarepro.tools.layer2.provenance_checker import ProvenanceChecker
-from satyarepro.tools.layer2.subgroup_reporter import SubgroupReporter
 from satyarepro.tools.parsers import parse_input
 
+_TARGET = "testing_notebooks/oversampling_analysis.py"
 
 # ── Usage-tracking wrapper ────────────────────────────────────────────────────
 
 class TrackingClient(ClaudeClient):
-    """ClaudeClient that accumulates token usage across all complete() calls."""
-
     def __init__(self) -> None:
         super().__init__()
         self.calls: list[dict] = []
@@ -86,28 +86,23 @@ def _divider() -> None:
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
-async def main(notebook_path: str) -> None:
-    _header(f"Layer 2 Integration Test")
-    print(f"  Notebook : {notebook_path}")
-    print(f"  Model    : claude-sonnet-4-6")
+async def main() -> None:
+    _header("Vandewiele EHG Oversampling — Layer 2 Audit")
+    print(f"  File  : {_TARGET}")
+    print(f"  Model : claude-sonnet-4-6")
+    print(f"  Tools : leakage_detector, metrics_completeness_checker")
 
-    # Step 1: parse the notebook
-    print("\n[1/6] Parsing notebook…")
-    code = await parse_input(notebook_path)
+    print("\n[1/3] Parsing script…")
+    code = await parse_input(_TARGET)
     print(f"      {len(code)} chars extracted.\n")
 
-    # Shared client — tracks usage across all tool calls
     client = TrackingClient()
+    n_total = 3  # parse + 2 tools
 
     tools = [
         ("leakage_detector",             LeakageDetector(client=client)),
-        ("subgroup_reporter",            SubgroupReporter(client=client)),
-        ("provenance_checker",           ProvenanceChecker(client=client)),
-        ("hyperparameter_reporter",      HyperparameterReporter(client=client)),
         ("metrics_completeness_checker", MetricsCompletenessChecker(client=client)),
     ]
-
-    n_total = 1 + len(tools)  # parse step + tool steps
 
     for step, (name, tool) in enumerate(tools, start=2):
         print(f"[{step}/{n_total}] Running {name}…")
@@ -126,15 +121,14 @@ async def main(notebook_path: str) -> None:
         print(f"  stop_reason: {usage['stop_reason']}"
               + ("  ⚠ TRUNCATED" if truncated else ""))
 
-    # Step 5: totals
     _header("Token Usage Summary")
     t = client.total
     rows = [
-        ("API calls",          str(t["api_calls"])),
-        ("Total input tokens", f"{t['input']:,}"),
-        ("Total output tokens",f"{t['output']:,}"),
-        ("Cache read tokens",  f"{t['cache_read']:,}"),
-        ("Cache creation",     f"{t['cache_creation']:,}"),
+        ("API calls",           str(t["api_calls"])),
+        ("Total input tokens",  f"{t['input']:,}"),
+        ("Total output tokens", f"{t['output']:,}"),
+        ("Cache read tokens",   f"{t['cache_read']:,}"),
+        ("Cache creation",      f"{t['cache_creation']:,}"),
     ]
     col = max(len(r[0]) for r in rows)
     for label, value in rows:
@@ -143,11 +137,4 @@ async def main(notebook_path: str) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Layer 2 tools with real Claude API.")
-    parser.add_argument(
-        "--notebook",
-        default="testing_notebooks/test_notebook.ipynb",
-        help="Path to the .ipynb or .py file to audit (default: testing_notebooks/test_notebook.ipynb).",
-    )
-    args = parser.parse_args()
-    asyncio.run(main(args.notebook))
+    asyncio.run(main())
