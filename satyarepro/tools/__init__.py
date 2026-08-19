@@ -10,6 +10,7 @@ from .layer2 import (
     OutcomeDistributionChecker,
     ProvenanceChecker,
     SubgroupReporter,
+    WithinPaperRobustnessChecker,
 )
 from .parsers import NotebookParser, RepoFetcher, ScriptParser
 from .reports import DMSPGenerator, TripodAIGenerator
@@ -39,6 +40,8 @@ def create_default_registry(
         ProvenanceChecker(client),
         # Applicability — cross-study outcome distribution checks
         OutcomeDistributionChecker(client, asta_client),
+        # Replicability — within-paper statistical robustness signals
+        WithinPaperRobustnessChecker(client),
         # Report generators
         TripodAIGenerator(client),
         DMSPGenerator(client),
