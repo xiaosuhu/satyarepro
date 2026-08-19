@@ -627,12 +627,13 @@ class TestParseInput:
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestRegistry:
-    def test_all_twelve_tools_registered(self):
+    def test_all_thirteen_tools_registered(self):
         registry = create_default_registry()
         names = {s.name for s in registry.schemas()}
         expected = {
             "seed_check", "dependency_check", "split_check", "checkpoint_check",
             "leakage_detector", "subgroup_reporter", "provenance_checker",
+            "outcome_distribution_checker",
             "tripod_ai_generator", "dmsp_generator",
             "notebook_parser", "script_parser", "repo_fetcher",
         }

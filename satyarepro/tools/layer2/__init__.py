@@ -1,3 +1,4 @@
+from .applicability import OutcomeDistributionChecker
 from .hyperparameter_reporter import HyperparameterReporter
 from .leakage_detector import LeakageDetector
 from .metrics_completeness_checker import MetricsCompletenessChecker
@@ -10,4 +11,5 @@ __all__ = [
     "ProvenanceChecker",
     "HyperparameterReporter",
     "MetricsCompletenessChecker",
+    "OutcomeDistributionChecker",
 ]
