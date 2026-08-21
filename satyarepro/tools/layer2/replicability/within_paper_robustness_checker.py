@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import ast
-import json
 from typing import Any
 
 from satyarepro.client.base import ModelClient
 from satyarepro.types import ToolSchema
 
-from ..._utils import dotted_name
+from ..._utils import _extract_json_object, dotted_name
 from ...checklist import Check, CheckResult, ChecklistTool
 
 # ── Layer 1 checks: static AST scanning, no LLM ──────────────────────────────
@@ -211,23 +210,6 @@ mentioned, else false. Set to false if "tested" is false.
 - "evidence": a short quote or paraphrase supporting your answer, or "" if tested is false.
 - "confidence": "high", "medium", or "low" — your confidence in this determination given \
 the text provided."""
-
-
-def _extract_json_object(text: str) -> dict[str, Any]:
-    cleaned = text.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.strip("`")
-        if cleaned.startswith("json"):
-            cleaned = cleaned[4:]
-        cleaned = cleaned.strip()
-    start = cleaned.find("{")
-    end = cleaned.rfind("}")
-    if start == -1 or end == -1 or end < start:
-        raise ValueError(f"Could not find a JSON object in LLM response: {text!r}")
-    parsed = json.loads(cleaned[start : end + 1])
-    if not isinstance(parsed, dict):
-        raise ValueError(f"Expected a JSON object, got {type(parsed).__name__}")
-    return parsed
 
 
 # ── The tool ──────────────────────────────────────────────────────────────
