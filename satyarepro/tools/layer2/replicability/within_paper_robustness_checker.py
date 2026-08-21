@@ -6,7 +6,8 @@ from typing import Any
 from satyarepro.client.base import ModelClient
 from satyarepro.types import ToolSchema
 
-from ..._utils import _extract_json_object, dotted_name
+from ..._llm_utils import _extract_json_object
+from ..._static_utils import dotted_name
 from ...checklist import Check, CheckResult, ChecklistTool
 
 # ── Layer 1 checks: static AST scanning, no LLM ──────────────────────────────

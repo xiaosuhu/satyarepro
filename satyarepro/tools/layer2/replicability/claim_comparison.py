@@ -4,7 +4,7 @@ from typing import Any
 
 from satyarepro.client.base import ModelClient
 
-from ..._utils import _extract_json_object
+from ..._llm_utils import _extract_json_object
 
 _JUDGE_SYSTEM = (
     "You are a biomedical ML methodologist comparing a target research claim against a "

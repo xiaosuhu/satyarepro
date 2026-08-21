@@ -4,7 +4,7 @@ import json
 from satyarepro.types import ToolSchema
 
 from ..base import Tool
-from .._utils import collect_calls, collect_imports
+from .._static_utils import collect_calls, collect_imports
 
 _TRAINING_CALLS = {
     "model.fit",

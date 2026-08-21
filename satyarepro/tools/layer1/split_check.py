@@ -4,7 +4,7 @@ import json
 from satyarepro.types import ToolSchema
 
 from ..base import Tool
-from .._utils import collect_imports, dotted_name
+from .._static_utils import collect_imports, dotted_name
 
 _FIT_METHODS = {"fit", "fit_transform"}
 _TRAIN_HINTS = {"train", "_train", "tr", "trn"}
